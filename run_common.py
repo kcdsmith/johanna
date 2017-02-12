@@ -20,7 +20,6 @@ except NameError:
 
 def _confirm_phase():
     phase = env['common']['PHASE']
-    eb = env['elasticbeanstalk']
     print('Your current environment values are below')
     print('-' * 80)
     print('\tPHASE            : \'%s\'' % phase)
@@ -33,15 +32,12 @@ def _confirm_phase():
 
 
 class AWSCli:
-    cidr_vpc = dict()
-    cidr_vpc['eb'] = env['common']['AWS_VPC_EB']
+    cidr_vpc = env['common']['AWS_VPC']
 
     cidr_subnet = dict()
-    cidr_subnet['eb'] = dict()
-    cidr_subnet['eb']['private_1'] = env['common']['AWS_SUBNET_EB_PRIVATE_1']
-    cidr_subnet['eb']['private_2'] = env['common']['AWS_SUBNET_EB_PRIVATE_2']
-    cidr_subnet['eb']['public_1'] = env['common']['AWS_SUBNET_EB_PUBLIC_1']
-    cidr_subnet['eb']['public_2'] = env['common']['AWS_SUBNET_EB_PUBLIC_2']
+    cidr_subnet['public_nat'] = env['common']['AWS_SUBNET_NAT']
+    cidr_subnet['public_1'] = env['common']['AWS_SUBNET_1']
+    cidr_subnet['public_2'] = env['common']['AWS_SUBNET_2']
 
     def __init__(self):
         if not env['aws'].get('AWS_ACCESS_KEY_ID') or \
@@ -76,8 +72,6 @@ class AWSCli:
                 return json.loads(result)
             except:
                 return result
-        elif args[0] == 'eb':
-            return result
 
         return dict()
 
@@ -85,103 +79,21 @@ class AWSCli:
         args = ['aws'] + args
         return self._run(args, cwd, ignore_error)
 
-    def run_eb(self, args, cwd=None, ignore_error=None):
-        args = ['eb'] + args
-        return self._run(args, cwd, ignore_error)
-
     def get_vpc_id(self):
-        eb_vpc_id = None
+        vpc_id = None
         cmd = ['ec2', 'describe-vpcs']
-        cmd += ['--filters=Name=cidr,Values=%s' % self.cidr_vpc['eb']]
+        cmd += ['--filters=Name=cidr,Values=%s' % self.cidr_vpc]
         result = self.run(cmd)
         if len(result['Vpcs']) == 1:
-            eb_vpc_id = dict(result['Vpcs'][0])['VpcId']
+            vpc_id = dict(result['Vpcs'][0])['VpcId']
 
-        return eb_vpc_id
-
-    def get_cache_address(self):
-        cmd = ['elasticache', 'describe-cache-clusters', '--show-cache-node-info']
-
-        elapsed_time = 0
-        cache_address = None
-        while not cache_address:
-            result = self.run(cmd)
-
-            # noinspection PyBroadException
-            try:
-                cache_clusters = result['CacheClusters'][0]
-                cache_nodes = dict(cache_clusters)['CacheNodes'][0]
-                cache_endpoint = dict(cache_nodes)['Endpoint']
-                cache_address = dict(cache_endpoint)['Address']
-                if cache_address:
-                    return cache_address
-            except:
-                pass
-
-            print('waiting for a new cache... (elapsed time: \'%d\' seconds)' % elapsed_time)
-            time.sleep(5)
-            elapsed_time += 5
-
-            if elapsed_time > 60 * 30:
-                raise Exception()
-
-    def get_database_address(self, read_replica=None):
-        cmd = ['rds', 'describe-db-instances']
-
-        elapsed_time = 0
-        db_address = None
-        while not db_address:
-            result = self.run(cmd)
-
-            # noinspection PyBroadException
-            try:
-                for db_instance in result['DBInstances']:
-                    db_instance = dict(db_instance)
-
-                    if not read_replica and 'ReadReplicaSourceDBInstanceIdentifier' in db_instance:
-                        continue
-                    elif read_replica and 'ReadReplicaSourceDBInstanceIdentifier' not in db_instance:
-                        continue
-
-                    db_endpoint = db_instance['Endpoint']
-                    db_address = dict(db_endpoint)['Address']
-
-                    if db_address:
-                        return db_address
-            except:
-                pass
-
-            print('waiting for a new database... (elapsed time: \'%d\' seconds)' % elapsed_time)
-            time.sleep(5)
-            elapsed_time += 5
-
-            if elapsed_time > 60 * 30:
-                raise Exception()
+        return vpc_id
 
     def set_name_tag(self, resource_id, name):
         cmd = ['ec2', 'create-tags']
         cmd += ['--resources', resource_id]
         cmd += ['--tags', 'Key=Name,Value=%s' % name]
         self.run(cmd)
-
-    def wait_terminate_eb(self):
-        cmd = ['ec2', 'describe-instances']
-
-        elapsed_time = 0
-        while True:
-            result = self.run(cmd)
-            count = 0
-            for r in result['Reservations']:
-                for instance in r.get('Instances'):
-                    if instance['State']['Name'] != 'terminated':
-                        count += 1
-
-            if count == 0:
-                break
-
-            print('terminating the eb... (elapsed time: \'%d\' seconds)' % elapsed_time)
-            time.sleep(5)
-            elapsed_time += 5
 
     def wait_delete_nat_gateway(self):
         cmd = ['ec2', 'describe-nat-gateways']
@@ -252,22 +164,3 @@ def re_sub_lines(lines, pattern, repl):
         new_lines.append(ll)
 
     return new_lines
-
-
-def download_template():
-    git_url = env['template']['GIT_URL']
-    name = env['template']['NAME']
-    phase = env['common']['PHASE']
-
-    print_session('download ' + name)
-
-    subprocess.Popen(['mkdir', '-p', './template']).communicate()
-    subprocess.Popen(['rm', '-rf', './' + name], cwd='template').communicate()
-    if phase == 'dv':
-        template_git_command = ['git', 'clone', '--depth=1', git_url]
-    else:
-        template_git_command = ['git', 'clone', '--depth=1', '-b', phase, git_url]
-    subprocess.Popen(template_git_command, cwd='template').communicate()
-
-    if not os.path.exists('template/' + name):
-        raise Exception()

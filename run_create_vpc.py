@@ -14,6 +14,7 @@ if __name__ == "__main__":
     parse_args()
 
 aws_cli = AWSCli()
+aws_availability_zone_nat = env['aws']['AWS_AVAILABILITY_ZONE_NAT']
 aws_availability_zone_1 = env['aws']['AWS_AVAILABILITY_ZONE_1']
 aws_availability_zone_2 = env['aws']['AWS_AVAILABILITY_ZONE_2']
 
@@ -27,66 +28,35 @@ cidr_subnet = aws_cli.cidr_subnet
 ################################################################################
 print_message('get vpc id')
 
-eb_vpc_id = aws_cli.get_vpc_id()
-if eb_vpc_id:
+vpc_id = aws_cli.get_vpc_id()
+if vpc_id:
     print_message('VPC already exists')
-    print('EB: %s \n' % eb_vpc_id)
+    print('ID: %s \n' % vpc_id)
     print_session('finish python code')
     sys.exit(0)
 
 ################################################################################
 #
-# EB
+# IAM
 #
 ################################################################################
-print_session('create eb application')
+print_session('create iam role/policy')
 
 ################################################################################
-print_message('import key pair')
-
-cmd = ['ec2', 'import-key-pair']
-cmd += ['--key-name', env['common']['AWS_KEY_PAIR_NAME']]
-cmd += ['--public-key-material', env['common']['AWS_KEY_PAIR_MATERIAL']]
-aws_cli.run(cmd)
-
-################################################################################
-print_message('create iam role')
+print_message('create role')
 
 cmd = ['iam', 'create-role']
-cmd += ['--role-name', 'aws-elasticbeanstalk-ec2-role']
-cmd += ['--assume-role-policy-document', 'file://aws_iam/aws-elasticbeanstalk-ec2-role.json']
-aws_cli.run(cmd)
-
-cmd = ['iam', 'create-role']
-cmd += ['--role-name', 'aws-elasticbeanstalk-ec2-worker-role']
-cmd += ['--assume-role-policy-document', 'file://aws_iam/aws-elasticbeanstalk-ec2-worker-role.json']
-aws_cli.run(cmd)
-
-cmd = ['iam', 'create-role']
-cmd += ['--role-name', 'aws-elasticbeanstalk-service-role']
-cmd += ['--assume-role-policy-document', 'file://aws_iam/aws-elasticbeanstalk-service-role.json']
+cmd += ['--role-name', 'aws-lambda-default-role']
+cmd += ['--assume-role-policy-document', 'file://aws_iam/aws-lambda-default-role.json']
 aws_cli.run(cmd)
 
 ################################################################################
-print_message('put iam role policy')
+print_message('put role policy')
 
 cmd = ['iam', 'put-role-policy']
-cmd += ['--role-name', 'aws-elasticbeanstalk-ec2-worker-role']
-cmd += ['--policy-name', 'oneClick_aws-elasticbeanstalk-ec2-worker-role']
-cmd += ['--policy-document', 'file://aws_iam/oneClick_aws-elasticbeanstalk-ec2-worker-role.json']
-aws_cli.run(cmd)
-
-cmd = ['iam', 'put-role-policy']
-cmd += ['--role-name', 'aws-elasticbeanstalk-service-role']
-cmd += ['--policy-name', 'oneClick_aws-elasticbeanstalk-service-role']
-cmd += ['--policy-document', 'file://aws_iam/oneClick_aws-elasticbeanstalk-service-role.json']
-aws_cli.run(cmd)
-
-################################################################################
-print_message('create application')
-
-cmd = ['elasticbeanstalk', 'create-application']
-cmd += ['--application-name', env['elasticbeanstalk']['APPLICATION_NAME']]
+cmd += ['--role-name', 'aws-lambda-default-role']
+cmd += ['--policy-name', 'aws-lambda-default-policy']
+cmd += ['--policy-document', 'file://aws_iam/aws-lambda-default-policy.json']
 aws_cli.run(cmd)
 
 ################################################################################
@@ -100,47 +70,39 @@ print_session('create vpc')
 print_message('create vpc')
 
 cmd = ['ec2', 'create-vpc']
-cmd += ['--cidr-block', cidr_vpc['eb']]
+cmd += ['--cidr-block', cidr_vpc]
 result = aws_cli.run(cmd)
-eb_vpc_id = result['Vpc']['VpcId']
-aws_cli.set_name_tag(eb_vpc_id, 'eb')
+vpc_id = result['Vpc']['VpcId']
+aws_cli.set_name_tag(vpc_id, 'av_gateway')
 
 ################################################################################
 print_message('create subnet')
 
-eb_subnet_id = dict()
+subnet_id = dict()
 
 cmd = ['ec2', 'create-subnet']
-cmd += ['--vpc-id', eb_vpc_id]
-cmd += ['--cidr-block', cidr_subnet['eb']['private_1']]
+cmd += ['--vpc-id', vpc_id]
+cmd += ['--cidr-block', cidr_subnet['public_nat']]
+cmd += ['--availability-zone', aws_availability_zone_nat]
+result = aws_cli.run(cmd)
+subnet_id['public_nat'] = result['Subnet']['SubnetId']
+aws_cli.set_name_tag(subnet_id['public_nat'], 'public_nat')
+
+cmd = ['ec2', 'create-subnet']
+cmd += ['--vpc-id', vpc_id]
+cmd += ['--cidr-block', cidr_subnet['public_1']]
 cmd += ['--availability-zone', aws_availability_zone_1]
 result = aws_cli.run(cmd)
-eb_subnet_id['private_1'] = result['Subnet']['SubnetId']
-aws_cli.set_name_tag(eb_subnet_id['private_1'], 'eb_private_1')
+subnet_id['public_1'] = result['Subnet']['SubnetId']
+aws_cli.set_name_tag(subnet_id['public_1'], 'public_1')
 
 cmd = ['ec2', 'create-subnet']
-cmd += ['--vpc-id', eb_vpc_id]
-cmd += ['--cidr-block', cidr_subnet['eb']['private_2']]
+cmd += ['--vpc-id', vpc_id]
+cmd += ['--cidr-block', cidr_subnet['public_2']]
 cmd += ['--availability-zone', aws_availability_zone_2]
 result = aws_cli.run(cmd)
-eb_subnet_id['private_2'] = result['Subnet']['SubnetId']
-aws_cli.set_name_tag(eb_subnet_id['private_2'], 'eb_private_2')
-
-cmd = ['ec2', 'create-subnet']
-cmd += ['--vpc-id', eb_vpc_id]
-cmd += ['--cidr-block', cidr_subnet['eb']['public_1']]
-cmd += ['--availability-zone', aws_availability_zone_1]
-result = aws_cli.run(cmd)
-eb_subnet_id['public_1'] = result['Subnet']['SubnetId']
-aws_cli.set_name_tag(eb_subnet_id['public_1'], 'eb_public_1')
-
-cmd = ['ec2', 'create-subnet']
-cmd += ['--vpc-id', eb_vpc_id]
-cmd += ['--cidr-block', cidr_subnet['eb']['public_2']]
-cmd += ['--availability-zone', aws_availability_zone_2]
-result = aws_cli.run(cmd)
-eb_subnet_id['public_2'] = result['Subnet']['SubnetId']
-aws_cli.set_name_tag(eb_subnet_id['public_2'], 'eb_public_2')
+subnet_id['public_2'] = result['Subnet']['SubnetId']
+aws_cli.set_name_tag(subnet_id['public_2'], 'public_2')
 
 ################################################################################
 print_message('create internet gateway')
@@ -148,144 +110,113 @@ print_message('create internet gateway')
 cmd = ['ec2', 'create-internet-gateway']
 result = aws_cli.run(cmd)
 internet_gateway_id = result['InternetGateway']['InternetGatewayId']
-aws_cli.set_name_tag(internet_gateway_id, 'eb')
+aws_cli.set_name_tag(internet_gateway_id, 'av_gateway')
 
 ################################################################################
 print_message('attach internet gateway')
 
 cmd = ['ec2', 'attach-internet-gateway']
 cmd += ['--internet-gateway-id', internet_gateway_id]
-cmd += ['--vpc-id', eb_vpc_id]
+cmd += ['--vpc-id', vpc_id]
 aws_cli.run(cmd)
 
 ################################################################################
-print_message('create eip')  # We use only one NAT gateway at subnet 'public_1'
+print_message('create eip')
 
 cmd = ['ec2', 'allocate-address']
 cmd += ['--domain', 'vpc']
 result = aws_cli.run(cmd)
-eb_eip_id = result['AllocationId']
+eip_id = result['AllocationId']
 
 ################################################################################
-print_message('create nat gateway')  # We use only one NAT gateway at subnet 'public_1'
+print_message('create nat gateway')
 
 cmd = ['ec2', 'create-nat-gateway']
-cmd += ['--subnet-id', eb_subnet_id['public_1']]
-cmd += ['--allocation-id', eb_eip_id]
+cmd += ['--subnet-id', subnet_id['public_nat']]
+cmd += ['--allocation-id', eip_id]
 result = aws_cli.run(cmd)
-eb_nat_gateway_id = result['NatGateway']['NatGatewayId']
+nat_gateway_id = result['NatGateway']['NatGatewayId']
 
 ################################################################################
-print_message('create ' + 'route table')  # [FYI] PyCharm inspects 'create route table' as SQL query.
+print_message('create route table')
 
-eb_route_table_id = dict()
-
-cmd = ['ec2', 'create-route-table']
-cmd += ['--vpc-id', eb_vpc_id]
-result = aws_cli.run(cmd)
-eb_route_table_id['private'] = result['RouteTable']['RouteTableId']
-aws_cli.set_name_tag(eb_route_table_id['private'], 'eb_private')
+route_table_id = dict()
 
 cmd = ['ec2', 'create-route-table']
-cmd += ['--vpc-id', eb_vpc_id]
+cmd += ['--vpc-id', vpc_id]
 result = aws_cli.run(cmd)
-eb_route_table_id['public'] = result['RouteTable']['RouteTableId']
-aws_cli.set_name_tag(eb_route_table_id['public'], 'eb_public')
+route_table_id['public_nat'] = result['RouteTable']['RouteTableId']
+aws_cli.set_name_tag(route_table_id['public_nat'], 'public_nat')
+
+cmd = ['ec2', 'create-route-table']
+cmd += ['--vpc-id', vpc_id]
+result = aws_cli.run(cmd)
+route_table_id['public'] = result['RouteTable']['RouteTableId']
+aws_cli.set_name_tag(route_table_id['public'], 'public')
 
 ################################################################################
 print_message('associate route table')
 
 cmd = ['ec2', 'associate-route-table']
-cmd += ['--subnet-id', eb_subnet_id['private_1']]
-cmd += ['--route-table-id', eb_route_table_id['private']]
+cmd += ['--subnet-id', subnet_id['public_nat']]
+cmd += ['--route-table-id', route_table_id['public_nat']]
 aws_cli.run(cmd)
 
 cmd = ['ec2', 'associate-route-table']
-cmd += ['--subnet-id', eb_subnet_id['private_2']]
-cmd += ['--route-table-id', eb_route_table_id['private']]
+cmd += ['--subnet-id', subnet_id['public_1']]
+cmd += ['--route-table-id', route_table_id['public']]
 aws_cli.run(cmd)
 
 cmd = ['ec2', 'associate-route-table']
-cmd += ['--subnet-id', eb_subnet_id['public_1']]
-cmd += ['--route-table-id', eb_route_table_id['public']]
-aws_cli.run(cmd)
-
-cmd = ['ec2', 'associate-route-table']
-cmd += ['--subnet-id', eb_subnet_id['public_2']]
-cmd += ['--route-table-id', eb_route_table_id['public']]
+cmd += ['--subnet-id', subnet_id['public_2']]
+cmd += ['--route-table-id', route_table_id['public']]
 aws_cli.run(cmd)
 
 ################################################################################
 print_message('create route')
 
 cmd = ['ec2', 'create-route']
-cmd += ['--route-table-id', eb_route_table_id['public']]
+cmd += ['--route-table-id', route_table_id['public_nat']]
 cmd += ['--destination-cidr-block', '0.0.0.0/0']
 cmd += ['--gateway-id', internet_gateway_id]
 aws_cli.run(cmd)
 
 cmd = ['ec2', 'create-route']
-cmd += ['--route-table-id', eb_route_table_id['private']]
+cmd += ['--route-table-id', route_table_id['public']]
 cmd += ['--destination-cidr-block', '0.0.0.0/0']
-cmd += ['--nat-gateway-id', eb_nat_gateway_id]
+cmd += ['--nat-gateway-id', nat_gateway_id]
 aws_cli.run(cmd)
 
 ################################################################################
 print_message('create security group')
 
-eb_security_group_id = dict()
+security_group_id = dict()
 
 cmd = ['ec2', 'create-security-group']
-cmd += ['--group-name', 'eb_private']
-cmd += ['--description', 'eb_private']
-cmd += ['--vpc-id', eb_vpc_id]
+cmd += ['--group-name', 'public_nat']
+cmd += ['--description', 'public_nat']
+cmd += ['--vpc-id', vpc_id]
 result = aws_cli.run(cmd)
-eb_security_group_id['private'] = result['GroupId']
+security_group_id['public_nat'] = result['GroupId']
 
 cmd = ['ec2', 'create-security-group']
-cmd += ['--group-name', 'eb_public']
-cmd += ['--description', 'eb_public']
-cmd += ['--vpc-id', eb_vpc_id]
+cmd += ['--group-name', 'public']
+cmd += ['--description', 'public']
+cmd += ['--vpc-id', vpc_id]
 result = aws_cli.run(cmd)
-eb_security_group_id['public'] = result['GroupId']
+security_group_id['public'] = result['GroupId']
 
 ################################################################################
 print_message('authorize security group ingress')
 
 cmd = ['ec2', 'authorize-security-group-ingress']
-cmd += ['--group-id', eb_security_group_id['private']]
+cmd += ['--group-id', security_group_id['public_nat']]
 cmd += ['--protocol', 'all']
-cmd += ['--source-group', eb_security_group_id['private']]
+cmd += ['--cidr', '0.0.0.0/0']
 aws_cli.run(cmd)
 
 cmd = ['ec2', 'authorize-security-group-ingress']
-cmd += ['--group-id', eb_security_group_id['private']]
+cmd += ['--group-id', security_group_id['public']]
 cmd += ['--protocol', 'all']
-cmd += ['--source-group', eb_security_group_id['public']]
-aws_cli.run(cmd)
-
-cmd = ['ec2', 'authorize-security-group-ingress']
-cmd += ['--group-id', eb_security_group_id['public']]
-cmd += ['--protocol', 'all']
-cmd += ['--source-group', eb_security_group_id['private']]
-aws_cli.run(cmd)
-
-cmd = ['ec2', 'authorize-security-group-ingress']
-cmd += ['--group-id', eb_security_group_id['public']]
-cmd += ['--protocol', 'all']
-cmd += ['--source-group', eb_security_group_id['public']]
-aws_cli.run(cmd)
-
-cmd = ['ec2', 'authorize-security-group-ingress']
-cmd += ['--group-id', eb_security_group_id['public']]
-cmd += ['--protocol', 'tcp']
-cmd += ['--port', '22']
-cmd += ['--cidr', cidr_vpc['eb']]
-aws_cli.run(cmd)
-
-cmd = ['ec2', 'authorize-security-group-ingress']
-cmd += ['--group-id', eb_security_group_id['public']]
-cmd += ['--protocol', 'tcp']
-cmd += ['--port', '80']
 cmd += ['--cidr', '0.0.0.0/0']
 aws_cli.run(cmd)
