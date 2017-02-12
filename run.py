@@ -8,27 +8,10 @@ from run_common import AWSCli
 
 command_list = list()
 command_list.append('create')
-command_list.append('create_eb')
 command_list.append('create_vpc')
-command_list.append('create_rds')
-command_list.append('create_sqs')
 
 command_list.append('terminate')
-command_list.append('terminate_eb_old_environment')
-command_list.append('terminate_eb')
 command_list.append('terminate_vpc')
-command_list.append('terminate_rds')
-command_list.append('terminate_sqs')
-
-command_list.append('describe')
-command_list.append('describe_eb')
-command_list.append('describe_vpc')
-command_list.append('describe_rds')
-
-command_list.append('alter_database')
-command_list.append('mysqldump_data')
-command_list.append('mysqldump_schema')
-command_list.append('reset_database')
 
 
 def print_usage():
@@ -41,8 +24,6 @@ def print_usage():
     print('-' * 80)
     print('    ./run.py [OPTIONS] -- [AWS CLI COMMAND]\t\t' +
           '(ex: \'./run.py -- aws ec2 describe-instances\')')
-    print('    cd nova; ../run.py [OPTIONS] -- [EB CLI COMMAND]\t' +
-          '(ex: \'cd nova; ../run.py -- eb list --region ap-northeast-2\')')
     print('-' * 80)
     print('OPTIONS')
     print('')
@@ -88,18 +69,7 @@ if __name__ == "__main__":
     command = 'run_' + command
     if command == 'run_create':
         __import__('run_create_vpc')
-        __import__('run_create_rds')
-        __import__('run_create_eb')
-        __import__('run_create_sqs')
     elif command == 'run_terminate':
-        __import__('run_terminate_eb')
-        __import__('run_terminate_rds')
         __import__('run_terminate_vpc')
-        __import__('run_terminate_sqs')
-    elif command == 'run_describe':
-        __import__('run_describe_eb')
-        __import__('run_describe_vpc')
-        __import__('run_describe_rds')
-        __import__('run_describe_eb')
     else:
         __import__(command)

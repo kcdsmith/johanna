@@ -24,8 +24,6 @@ def _confirm_phase():
     print('Your current environment values are below')
     print('-' * 80)
     print('\tPHASE            : \'%s\'' % phase)
-    for eb_env in eb['ENVIRONMENTS']:
-        print('\tCNAME of %s    : \'%s\'' % (eb_env['NAME'], eb_env['CNAME']))
     print('-' * 80)
 
     answer = input('Please type in the name of phase \'%s\' to confirm: ' % phase)
