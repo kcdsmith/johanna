@@ -36,8 +36,8 @@ class AWSCli:
 
     cidr_subnet = dict()
     cidr_subnet['public_nat'] = env['common']['AWS_SUBNET_NAT']
-    cidr_subnet['public_1'] = env['common']['AWS_SUBNET_1']
-    cidr_subnet['public_2'] = env['common']['AWS_SUBNET_2']
+    cidr_subnet['private_1'] = env['common']['AWS_SUBNET_1']
+    cidr_subnet['private_2'] = env['common']['AWS_SUBNET_2']
 
     def __init__(self):
         if not env['aws'].get('AWS_ACCESS_KEY_ID') or \

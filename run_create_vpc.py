@@ -90,19 +90,19 @@ aws_cli.set_name_tag(subnet_id['public_nat'], 'public_nat')
 
 cmd = ['ec2', 'create-subnet']
 cmd += ['--vpc-id', vpc_id]
-cmd += ['--cidr-block', cidr_subnet['public_1']]
+cmd += ['--cidr-block', cidr_subnet['private_1']]
 cmd += ['--availability-zone', aws_availability_zone_1]
 result = aws_cli.run(cmd)
-subnet_id['public_1'] = result['Subnet']['SubnetId']
-aws_cli.set_name_tag(subnet_id['public_1'], 'public_1')
+subnet_id['private_1'] = result['Subnet']['SubnetId']
+aws_cli.set_name_tag(subnet_id['private_1'], 'private_1')
 
 cmd = ['ec2', 'create-subnet']
 cmd += ['--vpc-id', vpc_id]
-cmd += ['--cidr-block', cidr_subnet['public_2']]
+cmd += ['--cidr-block', cidr_subnet['private_2']]
 cmd += ['--availability-zone', aws_availability_zone_2]
 result = aws_cli.run(cmd)
-subnet_id['public_2'] = result['Subnet']['SubnetId']
-aws_cli.set_name_tag(subnet_id['public_2'], 'public_2')
+subnet_id['private_2'] = result['Subnet']['SubnetId']
+aws_cli.set_name_tag(subnet_id['private_2'], 'private_2')
 
 ################################################################################
 print_message('create internet gateway')
@@ -151,8 +151,8 @@ aws_cli.set_name_tag(route_table_id['public_nat'], 'public_nat')
 cmd = ['ec2', 'create-route-table']
 cmd += ['--vpc-id', vpc_id]
 result = aws_cli.run(cmd)
-route_table_id['public'] = result['RouteTable']['RouteTableId']
-aws_cli.set_name_tag(route_table_id['public'], 'public')
+route_table_id['private'] = result['RouteTable']['RouteTableId']
+aws_cli.set_name_tag(route_table_id['private'], 'private')
 
 ################################################################################
 print_message('associate route table')
@@ -163,13 +163,13 @@ cmd += ['--route-table-id', route_table_id['public_nat']]
 aws_cli.run(cmd)
 
 cmd = ['ec2', 'associate-route-table']
-cmd += ['--subnet-id', subnet_id['public_1']]
-cmd += ['--route-table-id', route_table_id['public']]
+cmd += ['--subnet-id', subnet_id['private_1']]
+cmd += ['--route-table-id', route_table_id['private']]
 aws_cli.run(cmd)
 
 cmd = ['ec2', 'associate-route-table']
-cmd += ['--subnet-id', subnet_id['public_2']]
-cmd += ['--route-table-id', route_table_id['public']]
+cmd += ['--subnet-id', subnet_id['private_2']]
+cmd += ['--route-table-id', route_table_id['private']]
 aws_cli.run(cmd)
 
 ################################################################################
@@ -182,7 +182,7 @@ cmd += ['--gateway-id', internet_gateway_id]
 aws_cli.run(cmd)
 
 cmd = ['ec2', 'create-route']
-cmd += ['--route-table-id', route_table_id['public']]
+cmd += ['--route-table-id', route_table_id['private']]
 cmd += ['--destination-cidr-block', '0.0.0.0/0']
 cmd += ['--nat-gateway-id', nat_gateway_id]
 aws_cli.run(cmd)
@@ -200,11 +200,11 @@ result = aws_cli.run(cmd)
 security_group_id['public_nat'] = result['GroupId']
 
 cmd = ['ec2', 'create-security-group']
-cmd += ['--group-name', 'public']
-cmd += ['--description', 'public']
+cmd += ['--group-name', 'private']
+cmd += ['--description', 'private']
 cmd += ['--vpc-id', vpc_id]
 result = aws_cli.run(cmd)
-security_group_id['public'] = result['GroupId']
+security_group_id['private'] = result['GroupId']
 
 ################################################################################
 print_message('authorize security group ingress')
@@ -216,7 +216,7 @@ cmd += ['--cidr', '0.0.0.0/0']
 aws_cli.run(cmd)
 
 cmd = ['ec2', 'authorize-security-group-ingress']
-cmd += ['--group-id', security_group_id['public']]
+cmd += ['--group-id', security_group_id['private']]
 cmd += ['--protocol', 'all']
 cmd += ['--cidr', '0.0.0.0/0']
 aws_cli.run(cmd)
