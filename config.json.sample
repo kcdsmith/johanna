@@ -1,10 +1,10 @@
 {
   "aws": {
     "AWS_ACCESS_KEY_ID": "...",
-    "AWS_AVAILABILITY_ZONE_NAT": "us-east-1a",
-    "AWS_AVAILABILITY_ZONE_1": "us-east-1a",
-    "AWS_AVAILABILITY_ZONE_2": "us-east-1b",
-    "AWS_DEFAULT_REGION": "us-east-1",
+    "AWS_AVAILABILITY_ZONE_NAT": "ap-northeast-2a",
+    "AWS_AVAILABILITY_ZONE_1": "ap-northeast-2a",
+    "AWS_AVAILABILITY_ZONE_2": "ap-northeast-2c",
+    "AWS_DEFAULT_REGION": "ap-northeast-2",
     "AWS_SECRET_ACCESS_KEY": "..."
   },
   "common": {

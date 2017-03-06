@@ -73,7 +73,7 @@ cmd = ['ec2', 'create-vpc']
 cmd += ['--cidr-block', cidr_vpc]
 result = aws_cli.run(cmd)
 vpc_id = result['Vpc']['VpcId']
-aws_cli.set_name_tag(vpc_id, 'av_gateway')
+aws_cli.set_name_tag(vpc_id, 'live-demo-20170308')
 
 ################################################################################
 print_message('create subnet')
@@ -110,7 +110,7 @@ print_message('create internet gateway')
 cmd = ['ec2', 'create-internet-gateway']
 result = aws_cli.run(cmd)
 internet_gateway_id = result['InternetGateway']['InternetGatewayId']
-aws_cli.set_name_tag(internet_gateway_id, 'av_gateway')
+aws_cli.set_name_tag(internet_gateway_id, 'live-demo-20170308')
 
 ################################################################################
 print_message('attach internet gateway')
